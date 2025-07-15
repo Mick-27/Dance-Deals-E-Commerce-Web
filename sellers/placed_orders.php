@@ -1,0 +1,106 @@
+<?php
+
+include '../components/connect.php';
+
+session_start(); //start session
+
+$seller_id = $_SESSION['seller_id']; //get session id from session and stores in session_id
+
+if(!isset($seller_id)){ //if admin not set
+    header('location:seller_login.php'); //back to log in page 
+}
+
+if(isset($_POST['update_payment'])){
+    $order_id = $_POST['order_id'];
+    $payment_status = $_POST['payment_status'];
+    $payment_status = filter_var($payment_status, FILTER_SANITIZE_STRING);
+    $update_payment = $conn->prepare("UPDATE `sellers_orders` SET payment_status = ? WHERE id = ? AND seller_id = ?"); // Added seller_id to update
+    $update_payment->execute([$payment_status, $order_id, $seller_id]); // Pass seller_id
+    $message[] = 'Order Status Updated!';
+}
+
+if(isset($_GET['delete'])){
+    $delete_id = $_GET['delete'];
+    // Add seller_id to the DELETE query to prevent a seller from deleting another seller's orders
+    $delete_order = $conn->prepare("DELETE FROM `sellers_orders` WHERE id = ? AND seller_id = ?");
+    $delete_order->execute([$delete_id, $seller_id]);
+    header('location:placed_orders.php');
+}
+
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>placed prders</title>
+
+    <!-- font awesome link  -->
+     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+
+     <!-- custom css link -->
+      <link rel="stylesheet" href="../css/admin_style.css">
+
+</head>
+
+
+<body>
+<?php include '../components/seller_header.php'; ?>
+
+<!-- placed orders section -->
+
+<section class="placed-orders">
+
+    <h1 class="heading">Placed Orders</h1>
+    
+    <div class="box-container">
+            <?php
+            $select_orders = $conn->prepare("SELECT * FROM `sellers_orders`");
+            $select_orders->execute();
+            if($select_orders->rowCount() > 0){
+                while($fetch_orders = $select_orders->fetch(PDO::FETCH_ASSOC)){
+        ?>
+        <div class="box">
+            <p> User ID : <span><?= $fetch_orders['user_id']; ?></span> </p>
+            <p> Placed on : <span><?= $fetch_orders['placed_on']; ?></span> </p>
+            <p> Name : <span><?= $fetch_orders['name']; ?></span> </p>
+            <p> Number : <span><?= $fetch_orders['number']; ?></span> </p>
+            <p> Address : <span><?= $fetch_orders['address']; ?></span> </p>
+            <p> Total Products : <span><?= $fetch_orders['total_products']; ?></span> </p>
+            <p> Total Price : <span>R<?= $fetch_orders['total_price']; ?></span> </p>
+            <p> Payment Method : <span><?= $fetch_orders['method']; ?></span> </p>
+            <form action="" method="post">
+                <input type="hidden" name="order_id" value="<?= $fetch_orders['id']; ?>">
+                <select name="payment_status" class="select">
+                    <option selected disabled><?= $fetch_orders['payment_status']; ?></option>
+                    <option value="processing">Processing</option>
+                    <option value="completed">Completed</option>
+                </select>
+                <div class="flex-btn">
+                    <input type="submit" value="update" class="option-btn" name="update_payment">
+                    <a href="placed_orders.php?delete=<?= $fetch_orders['id']; ?>" class="delete-btn" onclick="return confirm('delete this order?');">Delete</a>
+                </div>
+            </form>
+        </div>
+        <?php
+                }
+            }else{
+                echo '<p class="empty">no orders placed yet!</p>';
+            }
+        ?>
+
+
+    </div>
+
+</section>
+
+
+
+
+
+<!-- js file link -->
+ <script src="../js/admin_script.js"></script>
+
+</body>
+</html>
